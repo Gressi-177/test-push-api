@@ -22,44 +22,97 @@ webPush.setVapidDetails(
   privateVapidKey
 );
 
-const dataStore = {};
+let subscriptions = [];
 
-// Routes
 app.post("/subscribe", (req, res) => {
   const { fingerprint, addressWallet, subscription } = req.body;
 
-  const message = dataStore[fingerprint]
-    ? "Fingerprint đã tồn tại. Đã cập nhật addressWallet và subscription."
-    : "Đã thêm mới fingerprint.";
-    
-  // Đặt hoặc cập nhật luôn thông tin cho fingerprint
-  dataStore[fingerprint] = { addressWallet, subscription };
+  try {
+    // Tìm bản ghi hiện có (nếu có)
+    const existingIndex = subscriptions.findIndex(
+      (sub) =>
+        sub.addressWallet === addressWallet && sub.fingerprint === fingerprint
+    );
 
+    if (existingIndex !== -1) {
+      // Cập nhật bản ghi hiện có
+      subscriptions[existingIndex] = {
+        ...subscriptions[existingIndex],
+        subscription,
+        status: "ACTIVE",
+      };
+    } else {
+      // Tạo bản ghi mới
+      subscriptions.push({
+        addressWallet,
+        fingerprint,
+        subscription,
+        status: "ACTIVE",
+      });
+    }
 
-  res.status(201).json({ message, dataStore });
+    // Cập nhật các bản ghi khác cùng addressWallet sang INACTIVE
+    subscriptions.forEach((sub, index) => {
+      if (
+        sub.addressWallet === addressWallet &&
+        sub.fingerprint !== fingerprint
+      ) {
+        subscriptions[index] = { ...sub, status: "INACTIVE" };
+      }
+    });
+
+    res.status(200).json({
+      message: "Subscription updated successfully",
+      data: subscriptions.find(
+        (sub) =>
+          sub.addressWallet === addressWallet && sub.fingerprint === fingerprint
+      ),
+    });
+  } catch (error) {
+    console.error("Error updating subscription:", error);
+    res
+      .status(500)
+      .json({ message: "Error updating subscription", error: error.message });
+  }
 });
 
-app.post("/send-notification", (req, res) => {
+app.post("/send-notification", async (req, res) => {
+  const { addressWallet } = req.body;
   const payload = JSON.stringify({
-    title: "Push notification",
-    body: "This is a push notification!",
+    title: "Test Notification",
+    body: "This is a test notification",
   });
 
-  subscriptions.forEach(async (subscription) => {
-    console.log(subscription);
+  const activeSubscriptions = subscriptions.filter(
+    (sub) => sub.addressWallet === addressWallet && sub.status === "ACTIVE"
+  );
+
+  if (activeSubscriptions.length === 0) {
+    return res
+      .status(404)
+      .json({ message: "No active subscriptions found for this wallet" });
+  }
+
+  activeSubscriptions.map(async (sub) => {
     await webPush
-      .sendNotification(subscription, payload)
+      .sendNotification(sub.subscription, payload)
       .then(() => {
-        console.log("Notification sent");
+        res.status(200).json({ message: "Notification sent successfully" });
       })
       .catch((error) => {
-        console.error(error);
-        subscriptions.delete(subscription);
+        res.status(500).json({
+          message: "Error sending notification",
+          error: error.message,
+        });
       });
   });
-
-  res.status(200).json({});
 });
+
+app.get("/subscriptions", (req, res) => {
+  res.status(200).json({ data: subscriptions });
+});
+
+module.exports = app;
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
