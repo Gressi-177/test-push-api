@@ -62,6 +62,7 @@ app.post("/subscribe", (req, res) => {
     });
 
     res.status(200).json({
+      success: true,
       message: "Subscription updated successfully",
       data: subscriptions.find(
         (sub) =>
