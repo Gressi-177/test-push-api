@@ -64,17 +64,28 @@ app.post("/subscribe", (req, res) => {
     res.status(200).json({
       success: true,
       message: "Subscription updated successfully",
-      data: subscriptions.find(
-        (sub) =>
-          sub.addressWallet === addressWallet && sub.fingerprint === fingerprint
-      ),
     });
   } catch (error) {
-    console.error("Error updating subscription:", error);
     res
       .status(500)
       .json({ message: "Error updating subscription", error: error.message });
   }
+});
+
+app.post("/unsubscribe", (req, res) => {
+  const { addressWallet } = req.body;
+
+  // Tìm bản ghi hiện có (nếu có)
+  subscriptions = subscriptions.filter(
+    (sub) => sub.addressWallet !== addressWallet
+  );
+
+  console.log(subscriptions);
+
+  res.status(200).json({
+    success: true,
+    message: "Unsubscribed successfully",
+  });
 });
 
 app.post("/send-notification", async (req, res) => {
