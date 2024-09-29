@@ -54,8 +54,8 @@ app.post("/subscribe", (req, res) => {
     // Cập nhật các bản ghi khác cùng addressWallet sang INACTIVE
     subscriptions.forEach((sub, index) => {
       if (
-        sub.addressWallet === addressWallet &&
-        sub.fingerprint !== fingerprint
+        sub.addressWallet !== addressWallet &&
+        sub.fingerprint === fingerprint
       ) {
         subscriptions[index] = { ...sub, status: "INACTIVE" };
       }
